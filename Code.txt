@@ -1,0 +1,1195 @@
+
+.model small
+.stack
+.data
+left db "Left Button Pressed at Coords: ","$"
+right db"Right Button Pressed at Coords: ","$"
+move db "Mouse Moved at Coordinates: ","$"
+next_line db 0DH,0AH, "$"
+x_coord dw 0
+y_coord dw 0
+coord dw 0
+value db ?
+unique db ?
+offset2 dw ?
+temp1 db 9 Dup("$")
+temp2 db 0
+temp_bx dw 0
+temp_store db 11 Dup(0)
+string db 144 Dup("$")
+no_space db "NOTE : OUT OF SPACE" , "$"
+head_alpha db 97d , 100d , 103d , 0d , 106d , 109d , 112d , 0d , 115d , 118d , 121d
+;smiley_ar db 1 Dup(":-)" , ":-(" , ";-)" , ":-P")
+smiley_ar db 3Ah , 2Dh , 29h , 3Ah , 2Dh , 28h , 3Bh , 2Dh , 29h , 3Ah , 2Dh , 50h
+digit_1 db "1 abc" ,20h,20h,20h,20h, "2 def" ,09h, "3 ghi" ,09h, "smiley" ,"$" 		;,0Ah,09h,09h,09h,09h, "smiley", "$"
+digit_2 db "4 jkl" ,20h,20h,20h,20h, "5 mno" ,09h, "6 pqr" ,09h, "symbol" ,"$"  	;,0Ah,09h,09h,09h,09h, "symb"  , "$"
+digit_3 db "7 stu" ,20h,20h,20h,20h, "8 vwx" ,09h, "9 yz"  ,09h, "next"  , "$"
+digit_line db 09h,09h,09h,09h, "line", "$"
+digit_exit db "exit" ,09h, "0" , 09h , "clear" , 09h , "space" , "$" 
+digit_enter_id db "Enter Id$"
+digit_send db "Send$"
+top_alpha db ?
+top_alpha2 db 5 Dup("$")
+w equ 280
+h equ 300
+count db 6
+count2 db 2
+extra db 0
+extra_2 db 0
+number db 0
+status db '!'
+status_2 db '!'
+unique_2 db 0
+instruction db "Welcome to the Mobile Keypad System!" ,09h,09h,09h,0Ah,0Dh, "Using this Interface is very simple. You just need to press the key with" ,09h, "the help of the mouse and the operation you want is done :-)" ,09h,09h,0Ah,0Dh, "$"
+instruction2 db "For any messages or complaints e-mail at saboorahmad751@gmail.com","$"
+input_string db 100 Dup("$")
+symb_ar db  2Eh , 2Ch , 60h , 3Bh , 21h , 2Bh , 22h , 3Dh , 2Ah , 40h , 3Ah 		
+;	    .	   ,     '     ;    !      +	 "     =     *     @    :
+offset_input_string dw ?
+id_ db 0
+file_1 db "1.txt",0
+file_2 db "2.txt",0
+file_3 db "3.txt",0
+file_4 db "4.txt",0
+file_5 db "5.txt",0
+.code
+start:
+main proc
+
+mov ax,@data
+mov ds, ax
+call clrrg ; Clear Data/General Registers
+
+;-------------------------------Changing Video Mode as Per Requirement
+mov ah,00h	; Change Video Mode if Required
+mov al,12h	; AL=12h, Video Mode 640*480
+int 10h
+
+;---------------------------------------------------mouse_boundary
+
+	mov ah, 0 ; video mode
+	mov al, 12h ; 640*480 mode
+	int 10h      ; video function interrupt
+	
+	mov ah, 06h
+	mov al, 0
+	mov ch, 29  ; down outer
+	mov cl, 00
+	mov dh, 29
+	mov dl, 80
+	mov bh, 14h
+	int 10h
+	
+	mov ah, 06h
+	mov al, 0
+	mov ch, 00
+	mov cl, 00   ;up outer
+	mov dh, 00
+	mov dl, 80
+	mov bh, 14h
+	int 10h
+	
+	mov ah, 06h
+	mov al, 0
+	mov ch, 00
+	mov cl, 00
+	mov dh, 29   ;left outer
+	mov dl, 01
+	mov bh, 14h
+	int 10h
+	
+	mov ah, 06h
+	mov al, 0
+	mov ch, 00   ;right outer
+	mov cl, 78
+	mov dh, 29
+	mov dl, 80
+	mov bh, 14h
+	int 10h
+	
+	mov ah, 02h	; set cursor position
+	mov bh, 00
+	mov dh, 35  ;row number
+	mov dl, 02  ;column number
+	int 10h
+	
+	mov ah, 0Bh
+    mov bh,0h
+	mov bl,9
+	int 10h
+
+
+;-------------------------------Show Mouse Cursor on Screen
+mov	ax,1		; show Mouse Cursor Functionj
+int	33h			; Mouse Interrupt
+call clrrg		; Clear Registers
+
+;---------------------------------------------------printing numbers
+
+mov dh , 9
+mov dl , 6
+call gotoxy
+mov dx , offset digit_1
+mov ah , 09h
+int 21h
+
+mov dh , 12
+mov dl , 6
+call gotoxy
+mov dx , offset digit_2
+mov ah , 09h
+int 21h
+
+mov dh , 15
+mov dl , 6
+call gotoxy
+mov dx , offset digit_3
+mov ah , 09h
+int 21h
+
+mov dh , 18
+mov dl , 6
+call gotoxy
+mov dx , offset digit_exit
+mov ah , 09h
+int 21h
+
+mov dh , 17
+mov dl , 55
+call gotoxy
+mov dx , offset digit_enter_id
+mov ah , 09h
+int 21h
+
+mov dh , 20
+mov dl , 57
+call gotoxy
+mov dx , offset digit_send
+mov ah , 09h
+int 21h
+
+;--------------------------------------------draw grid
+;------draw upper line:---------
+
+    mov cx, 30+w	; column
+    mov dx, 30     	; row
+    mov al, 15		; white
+u1: mov ah , 0ch    ; put pixel
+    int 10h
+    
+    dec cx           
+    cmp cx, 30                             ;; change  100
+    jae u1
+ 
+;-----draw bottom line:-----
+
+    mov cx, 30+w  	; column
+    mov dx, 30+h   	; row
+    mov al, 15     	; white
+u2: mov ah, 0ch    	; put pixel
+    int 10h
+    
+    dec cx
+    cmp cx, 30
+    ja u2
+ 
+;-----draw left line:---------
+
+    mov cx, 30    	; column
+    mov dx, 30+h   	; row
+    mov al, 15     	; white
+u3: mov ah, 0ch    	; put pixel
+    int 10h
+    
+    dec dx
+    cmp dx, 30
+    ja u3 
+    
+    
+;-----draw right line:---------
+
+    mov cx, 30+w  ; column
+    mov dx, 30+h   ; row
+    mov al, 15     ; white
+u4: mov ah, 0ch    ; put pixel
+    int 10h
+    
+    dec dx
+    cmp dx, 30
+    ja u4     
+;---------------------------------------------------enter_id_and_send
+
+    mov cx, 250+w   ; column         w = 530           530 - 420 column numbers
+    mov dx, h-40    ; row	     h = 260           260 - 295 row numbers for enter id block
+    call draw_block ;			               305 - 340 row numbers for send block
+
+    mov cx, 250+w  ; column	     w = 530
+    mov dx, h-5   ; row		     h = 295
+    call draw_block	
+
+    mov cx, 250+w  ; column          w = 530
+    mov dx, h+5   ; row		     h = 305
+    call draw_block
+
+    mov cx, 250+w  ; column          w = 530
+    mov dx, h+40   ; row	     h = 340
+    call draw_block
+
+    mov cx, 140+w  ; column	     w = 390
+    mov dx, h+40   ; row	     h = 340
+    call draw_vertical_enter_block
+
+    mov cx, 250+w  ; column	     w = 530
+    mov dx, h+40  ; row	   	     h = 340
+    call draw_vertical_enter_block
+
+    mov cx, 140+w  ; column	     w = 390
+    mov dx, h-5   ; row	   	     h = 295
+    call draw_vertical_send_block
+
+    mov cx, 250+w  ; column	     w = 530
+    mov dx, h-5  ; row	   	     h = 295
+    call draw_vertical_send_block
+
+;---------------------------------------------------draw inner grid
+mov dx , 130
+call draw_line
+          
+add dx , 50          
+mov si , 3
+
+lab1:
+    call draw_line
+    add dx , 50
+    dec si
+    cmp si , 0
+jne lab1 
+
+mov cx, 100  
+call draw_vertical_line
+
+add cx , 70          
+mov si , 2
+
+lab2:
+    call draw_vertical_line
+    add cx , 70
+    dec si
+    cmp si , 0
+jne lab2 
+
+;
+mov temp_bx , bx
+mov bx , offset input_string
+mov offset_input_string , bx
+mov bx , temp_bx
+
+
+mov dx,seg mouse_handler	
+mov es,dx			
+mov dx,offset mouse_handler	
+mov cx,	00001011b	 ; CX=00001011b tells, we want to generate Interrupt , if Left Mouse Button OR Right Mouse Button is Pressed
+mov ax,000Ch	
+int 33h		
+
+call clrrg
+
+loop1:			; Infinite Loop
+			; No Operation
+cmp status , '#'
+je ouut
+jmp loop1
+
+ouut:
+mov dh , 22
+mov dl , 0
+call gotoxy
+mov cl , 40
+.while cl != 0
+mov ah , 02h
+mov dl , 09h
+int 21h
+dec cl
+.endw
+
+call termprg	; Terminate Program
+
+main endp
+;----------------------------------------mouse_handler proc;
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; 1 - (131 , 179),(31 , 99)
+; 2 - (131 , 179),(101 , 169)
+; 3 - (131 , 179),(171 , 239)
+; 4 - (181 , 229),(31 , 99)
+; 5 - (181 , 229),(101 , 169)
+; 6 - (181 , 229),(171 , 239)
+; 7 - (231 , 279),(31 , 99)
+; 8 - (231 , 279),(101 , 169)
+; 9 - (231 , 279),(171 , 239)
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+mouse_handler proc far
+
+.if ax==00000010b ; Means Left Mouse Button is Pressed
+; You can also call any other function here
+mov x_coord,dx
+mov y_coord,cx
+
+mov dh , 6
+mov dl , 44
+call gotoxy
+
+mov dx,offset left	; Print Message
+mov ah,09h
+int 21h
+
+mov dh , 7
+mov dl , 44
+call gotoxy
+
+call erase
+
+mov dh , 7
+mov dl , 44
+call gotoxy
+
+mov dx,x_coord
+mov coord, dx		; Passing as Argument in Variable
+call print_coord	; Print X Coordinates
+
+mov dl,","		; Print Comma
+mov ah,02h
+int 21h
+
+mov dx,y_coord
+mov coord, dx		; Passing as Argument in Variable
+call print_coord	; Print Y Coordinates
+
+mov si , 0
+mov di , 0
+
+mov al , count
+.if al < 35
+	mov dh , count2
+	mov dl , count
+.elseif al >= 35
+	mov bl , count2
+	.if bl == 6
+		mov dh , 12
+		mov dl , 44
+		call gotoxy
+	
+		mov dl , no_space
+		mov ah , 02h
+		int 21h
+	
+		mov dh , count2
+		mov dl , count
+		dec dl
+	.else
+		mov dl , 0Ah
+		call store_bx
+		mov dl , 09h
+		call store_bx
+		inc count2
+		mov dh , count2
+		mov count , 6
+		mov dl , count
+	.endif
+.endif
+
+
+call gotoxy
+
+mov si , x_coord
+mov di , y_coord
+.if si >= 131
+	.if si <= 179
+		.if di >= 31	 	
+			.if di <= 99
+				mov bx , 1
+				.if status_2 == '#'
+					mov unique_2 , bl
+					call printing_simple_digit
+				.else
+					call deciding_alpha_proc
+				.endif
+				inc count
+			.elseif di >=101
+				.if di <= 169
+					mov bx , 2
+					.if status_2 == '#'
+						mov unique_2 , bl
+						call printing_simple_digit
+					.else
+						call deciding_alpha_proc
+					.endif
+					inc count
+				.elseif di >=171
+					.if di <= 239
+						mov bx , 3
+						.if status_2 == '#'
+							mov unique_2 , bl
+							call printing_simple_digit
+						.else
+							call deciding_alpha_proc
+						.endif
+						inc count
+					.elseif di >= 241
+						.if di <= 309
+							mov bx , 4
+							.if status_2 != '#'
+								call deciding_alpha_proc
+								mov dl , 3
+								add count , dl
+							.endif
+						.endif
+					.endif					
+				.endif
+			.endif
+		.endif
+	.elseif si >= 181
+		.if si <= 229
+			.if di >= 31	 	
+				.if di <= 99
+					mov bx , 5
+					.if status_2 == '#'
+						mov unique_2 , bl
+						call printing_simple_digit
+					.else
+						call deciding_alpha_proc
+					.endif
+					inc count
+				.elseif di >=101
+					.if di <= 169
+						mov bx , 6
+						.if status_2 == '#'
+							mov unique_2 , bl
+							call printing_simple_digit
+						.else
+							call deciding_alpha_proc
+						.endif	
+						inc count
+					.elseif di >=171
+						.if di <= 239
+							mov bx , 7
+							.if status_2 != '#'
+								call deciding_alpha_proc
+								inc count
+							.endif
+						.elseif di >= 241
+							.if di <= 309
+								mov bx , 8
+								.if status_2 != '#'
+									call deciding_alpha_proc
+									inc count
+								.endif
+							.endif
+						.endif
+					.endif
+				.endif
+			.endif
+		.elseif si >= 231
+			.if si <= 279
+				.if di >= 31	 	
+					.if di <= 99
+						mov bx , 9
+						.if status_2 != '#'
+							call deciding_alpha_proc
+							inc count
+						.endif
+					.elseif di >=101
+						.if di <= 169
+							mov bx , 10
+							.if status_2 != '#'
+								call deciding_alpha_proc
+								inc count
+							.endif
+						.elseif di >=171
+							.if di <= 239
+								mov bx , 11
+								.if status_2 != '#'
+									call deciding_alpha_proc
+									inc count
+								.endif
+							.elseif di >= 241
+								.if di <= 309
+									.if status_2 != '#'
+										.if count2 <= 6
+											inc count2
+											mov count , 6
+											mov dh , count2
+											mov dl , count
+											call gotoxy
+											mov dl , 0Ah
+											call store_bx
+											mov dl , 0Dh
+											call store_bx
+											mov dx , 0
+										.endif
+									.endif
+								.endif
+							.endif
+						.endif
+					.endif
+				.endif
+			.elseif si >= 281
+				.if si <= 329
+					.if di >= 31	 	
+						.if di <= 99
+							mov status , '#'
+						.elseif di >=101
+							.if di <= 169
+								.if status_2 != '#'
+									mov ah , 02h
+									mov dl , 48d
+									int 21h
+									call store_bx
+									inc count 
+								.endif
+							.elseif di >=171
+								.if di <= 239
+									.if status_2 != '#'
+										.if count > 6
+											mov ah , 02h
+											mov dl , 08d
+											int 21h
+											call clear_bx
+											mov ah , 02h
+											mov dl , 00h
+											int 21h
+											dec count
+										.elseif count <= 6
+											.if count2 > 2
+												dec count2
+												mov al , 34
+												mov count , al
+											.else
+												nop
+											.endif
+										.endif
+									.endif
+								.elseif di >= 241
+									.if status_2 != '#'
+										.if di <= 309
+								 			mov ah , 02h
+											mov dl , 32d
+											int 21h
+											call store_bx
+											inc count
+										.endif
+							 		.endif
+								.endif
+							.endif
+						.endif
+					.endif
+				.endif
+			.endif
+		.endif	
+	.endif
+.endif
+
+.if si >= 261 && si <= 294 && di >= 421 && di <= 529
+
+mov si , 2
+mov dx , 0
+mov dl , 2
+mov temp2 , dl
+
+.while si <= 7
+
+	mov dh , temp2
+	mov dl , 6
+	call gotoxy
+	mov cl , 0
+	.while cl != 4
+		mov dl ,  09h
+		mov ah , 02h
+		int 21h
+		inc cl
+	.endw
+	
+	inc si
+	inc temp2
+.endw
+
+mov dh , 2
+mov count2 , dh
+mov dl , 6
+mov count , dl
+call gotoxy
+
+mov ah , '#'
+mov status_2 , ah
+
+.elseif si >= 306 && si <= 339 && di >= 421 && di <= 529
+
+	mov dx , 0
+	mov cx , 0
+	mov bx , offset input_string
+	mov ax , [bx]
+	
+	length_of_number:
+	mov al , [bx]
+	cmp al , "$"
+	je length_found
+	
+	inc cx
+	inc bx
+	jmp length_of_number
+
+	length_found:
+
+	mov dx , 0
+	mov dl , unique_2
+
+	.if dl > 3
+		dec dl
+	.endif
+	
+	.if dl == 1
+		mov dx , offset file_1
+	.elseif dl == 2
+		mov dx , offset file_2
+	.elseif dl == 3
+		mov dx , offset file_3
+	.elseif dl == 4
+		mov dx , offset file_4
+	.elseif dl == 5
+		mov dx , offset file_5
+	.endif	
+
+	mov al , 2
+	mov ah , 3Dh
+	int 21h
+	mov bx , ax
+
+	;mov cx , 100
+	mov dx , offset input_string
+	mov ah , 40h
+	int 21h
+
+	mov ah , 3Eh
+	int 21h	
+	
+.endif
+
+.endif			        ; this is the end of the part (if left mouse key is pressed)
+
+.if ax==00001000b ; Means Right Mouse Button is Pressed
+mov x_coord,dx
+mov y_coord,cx
+
+mov dh , 9
+mov dl , 44
+call gotoxy
+
+mov dx,offset right	; Print Message
+mov ah,09h
+int 21h
+
+mov dh , 10
+mov dl , 44
+call gotoxy
+
+call erase
+
+mov dh , 10
+mov dl , 44
+call gotoxy
+
+mov dx,x_coord
+mov coord, dx		; Passing as Argument in Variable
+call print_coord	; Print X Coordinates
+
+mov dl,","			; Print Comma
+mov ah,02h
+int 21h
+
+mov dx,y_coord
+mov coord, dx		; Passing as Argument in Variable
+call print_coord	; Print Y Coordinates
+
+
+.endif
+
+.if ax==00000001b ; Means Mouse is Moved
+mov x_coord,dx
+mov y_coord,cx
+
+mov dh , 3
+mov dl , 44
+call gotoxy
+
+mov dx,offset move	; Print Message
+mov ah,09h
+int 21h
+
+mov dh , 4
+mov dl , 44
+call gotoxy
+
+call erase
+
+mov dh , 4
+mov dl , 44
+call gotoxy
+
+mov dx,x_coord
+mov coord, dx		; Passing as Argument in Variable
+call print_coord	; Print X Coordinates
+
+mov dl,","			; Print Comma
+mov ah,02h
+int 21h
+
+mov dx,y_coord
+mov coord, dx		; Passing as Argument in Variable
+call print_coord	; Print Y Coordinates
+
+.endif
+
+ret
+mouse_handler endp
+
+;--------------------------erase
+erase proc
+mov cl , 3
+.while cl != 0
+	mov dx , 09h
+	mov ah , 02h
+	int 21h
+	dec cl
+.endw
+ret
+erase endp
+
+;--------------------------printing_simple_digit
+
+printing_simple_digit proc
+
+mov dl , count
+.if dl > 6
+	dec count
+	mov dl , bl
+	add dl , 48d
+	int 21h
+.endif
+
+ret
+printing_simple_digit endp
+
+;--------------------------store_bx
+
+store_bx proc
+	mov temp_bx , bx
+	mov bx , offset_input_string
+	mov [bx] , dl
+	inc bx
+	mov offset_input_string , bx
+	mov bx , temp_bx
+ret
+store_bx endp
+
+;--------------------------clear(backspace)_bx proc
+
+clear_bx proc
+	mov temp_bx , bx
+	mov bx , offset_input_string
+	dec bx
+	mov offset_input_string , bx
+	mov bx , temp_bx
+ret
+clear_bx endp
+
+;--------------------------printing_number proc
+printing_number proc far
+mov dl , 49d
+mov ah , 02h
+int 21h
+;mov dx , bx
+ret
+printing_number endp
+
+;--------------------------terminate program proc
+termprg proc far
+mov ah,4ch
+int 21h
+ret
+termprg endp
+
+
+;--------------------------printing coordinates proc
+
+print_coord proc far
+call clrrg			; Clear Data Registers
+mov ax,coord		; Move "coord" in 'ax' (Numerator goes in ax)
+mov bx,10			; Move 10 in bx  (Denominator goes in bx)
+; If value is ZERO
+.if ax==0			
+mov dl,al
+add dl,48
+mov ah,02h
+int 21h
+jmp return
+.endif
+; For Values other than ZERO
+.while ax !=0
+mov dx,0
+div bx
+push dx
+inc cx
+.endw
+mov extra , cl
+p:
+pop dx
+add dl,48
+mov ah,02h
+int 21h
+loop p
+return:
+ret
+print_coord endp
+
+;-------------------------------clrrg proc;
+clrrg proc far
+mov ax,0
+mov bx,0
+mov cx,0
+mov dx,0
+ret
+clrrg endp
+;-------------------------------gotoxy proc
+
+gotoxy proc far
+mov ah , 02h
+mov bh , 0
+int 10h
+ret
+gotoxy endp 
+
+;--------------draw_line proc;---------
+draw_line proc far
+    mov cx, 30+w  	; column
+    ;mov dx, 40     	; row
+    mov al, 15     	; white
+u5: mov ah , 0ch    ; put pixel
+    int 10h
+    
+    dec cx           
+    cmp cx, 30                             ;; change  100
+    jae u5
+    
+    ret
+draw_line endp
+
+;--------------draw_vertical_line proc;---------
+
+draw_vertical_line proc far
+    ;mov cx, 20+w  	; column
+    mov dx, 30+h     	; row
+    mov al, 15     	; white
+u6: mov ah , 0ch    ; put pixel
+    int 10h
+    
+    dec dx           
+    cmp dx, 130                             ;; change  100
+    jae u6
+    
+    ret  
+draw_vertical_line endp
+
+;-------------draw_block_proc
+
+draw_block proc
+
+    mov al, 15     ; white
+u7: mov ah, 0ch    ; put pixel
+    int 10h
+    
+    dec cx
+    cmp cx, 420
+    ja u7
+ret
+draw_block endp
+
+;-------------draw_vertical_enter_block proc
+
+draw_vertical_enter_block proc
+
+    mov al, 15     ; white
+u8: mov ah, 0ch    ; put pixel
+    int 10h
+    
+    dec dx
+    cmp dx, h+5
+    ja u8
+ret
+draw_vertical_enter_block endp
+
+;-------------draw_vertical_send_block proc
+
+draw_vertical_send_block proc
+
+    mov al, 15     ; white
+u9: mov ah, 0ch    ; put pixel
+    int 10h
+    
+    dec dx
+    cmp dx, h-40
+    ja u9
+ret
+draw_vertical_send_block endp
+
+;--------------deciding_alpha_proc proc;---------
+
+deciding_alpha_proc proc
+
+mov si , offset temp_store
+add si , bx
+sub si , 1
+
+again1:
+.if bl != number
+	mov number , bl
+	mov ah , 2Ch
+	int 21h
+	mov unique , dh
+	mov dx , 0
+
+	mov dx , 0
+	mov dl , 1
+	mov [si] , dl
+
+	.if bl == 4
+		mov di , offset smiley_ar
+		mov cl , 3
+		.while cl != 0
+			mov dl , [di]
+			mov ah , 02h
+			int 21h
+			call store_bx
+			inc di
+			dec cl
+		.endw
+		mov offset2 , di
+		
+	.elseif bl == 8
+		mov di , offset symb_ar
+		mov dl , [di]
+		mov ah , 02h
+		int 21h
+		call store_bx
+		inc di
+		mov offset2 , di
+	.else
+		mov dl , bl
+		.if bl >= 5 && bl <= 7
+			dec dl
+		.elseif bl >= 9 && bl <= 11
+			sub dl , 2
+		.endif
+
+		add dl , 48d
+		mov ah , 02h
+		int 21h
+		call store_bx
+		mov di , offset head_alpha
+		add di , bx
+		sub di , 1
+		mov dx , 0
+		mov dl , [di]
+		mov top_alpha , dl
+	.endif
+
+.else
+	mov ah , 2Ch
+	int 21h
+	mov cx , 0
+	mov cl , dh
+	mov dx , 0
+	
+	mov ch , 0
+	mov dx , 0
+	mov dl , unique
+	mov extra_2 , dl
+	mov ax , cx
+	sub cx , dx
+	.if cx <= 2
+		.if bl == 4
+
+			mov dl , [si] 
+			.if dl < 4
+				mov dl , extra_2
+				mov unique, dl
+			
+				mov cl , 3
+				.while cl !=0
+					mov ah , 02h
+					mov dx , 0
+					mov dl , 08h
+					int 21h
+					call clear_bx
+					dec count
+					dec cl
+				.endw
+				
+				mov di , offset2
+				mov cl , 3
+				.while cl != 0
+					mov dl , [di]
+					mov ah , 02h
+					int 21h
+					call store_bx
+					inc di
+					dec cl
+				.endw
+				mov offset2 , di
+		
+				mov dh , 1
+				add [si] , dh
+			.else
+			
+				mov cl , 3
+				.while cl !=0
+					mov ah , 02h
+					mov dx , 0
+					mov dl , 08h
+					int 21h
+					call clear_bx
+					dec count
+					dec cl
+				.endw
+				mov number , 0
+				;sub [di] , 2
+				jmp again1
+			.endif
+		
+		.elseif bl == 8
+			mov dl , [si] 
+			.if dl < 11
+				mov dl , extra_2
+				mov unique, dl
+			
+				mov ah , 02h
+				mov dx , 0
+				mov dl , 08h
+				int 21h
+				call clear_bx
+				dec count
+				mov di , offset2
+				mov dl , [di]
+				int 21h
+				call store_bx
+				inc di
+				mov offset2 , di
+			
+				mov dh , 1
+				add [si] , dh
+			.else
+				mov dl , 08h
+				mov ah , 02h
+				int 21h
+				call clear_bx
+				dec count
+				mov number , 0
+				;sub [di] , 2
+				jmp again1
+			.endif
+
+		.else
+			mov dl , [si] 
+			.if dl < 4
+				;inc top_alpha 
+				mov dl , extra_2
+				mov unique, dl
+			
+				mov ah , 02h
+				mov dx , 0
+				mov dl , 08h
+				int 21h
+				call clear_bx
+	
+				dec count
+				mov dl , top_alpha
+				int 21h
+				call store_bx
+				inc top_alpha
+			
+				mov dh , 1
+				add [si] , dh
+			.else
+				mov dl , 08h
+				mov ah , 02h
+				int 21h
+				call clear_bx
+				dec count
+				mov number , 0
+				;sub [di] , 2
+				jmp again1
+			.endif
+		.endif
+	
+	.else		
+		mov dl , 0
+		mov unique , dl
+		mov number , dl
+		jmp again1
+	.endif
+.endif
+
+ret 
+deciding_alpha_proc endp
+
+extra_tabs proc
+
+.while cl !=0
+mov dx , 09h
+mov ah , 02h
+int 21h
+dec cl
+.endw
+
+mov ah , 02h
+mov dx , 0Ah
+int 21h
+mov dx , 0Dh
+int 21h
+ret
+extra_tabs endp
+
+
+;-----------------------print_alphabet;----
+print_alphabet proc far
+
+mov ah , 02h
+int 21h
+ret 
+print_alphabet endp
+;-----------------------instruction printing
+instruction_print proc
+
+mov dh  , 22
+mov dl , 0
+call gotoxy
+mov dx , offset instruction
+mov ah , 09h
+int 21h
+mov dx , offset instruction2
+mov ah , 09h
+int 21h
+
+mov cl , 5
+call extra_tabs
+
+mov dh , count2
+mov dl , count
+call gotoxy
+ret
+
+instruction_print endp
+
+end start
+end
